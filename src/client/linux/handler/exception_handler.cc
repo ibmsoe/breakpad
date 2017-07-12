@@ -471,10 +471,17 @@ bool ExceptionHandler::HandleSignal(int /*sig*/, siginfo_t* info, void* uc) {
   // In case of MIPS Linux FP state is already part of struct ucontext
   // and 'float_state' is not a member of CrashContext.
   struct ucontext* uc_ptr = (struct ucontext*)uc;
-  if (uc_ptr->uc_mcontext.fpregs) {
+  #if defined(__PPC64__)
+    if (uc_ptr->uc_mcontext.fp_regs) {
+      memcpy(&g_crash_context_.float_state, uc_ptr->uc_mcontext.fp_regs,
+             sizeof(g_crash_context_.float_state));
+  }
+  #else
+    if (uc_ptr->uc_mcontext.fpregs) {
     memcpy(&g_crash_context_.float_state, uc_ptr->uc_mcontext.fpregs,
            sizeof(g_crash_context_.float_state));
   }
+  #endif
 #endif
   g_crash_context_.tid = syscall(__NR_gettid);
   if (crash_handler_ != NULL) {
@@ -708,8 +715,13 @@ bool ExceptionHandler::WriteMinidump() {
 
 #if !defined(__ARM_EABI__) && !defined(__aarch64__) && !defined(__mips__)
   // FPU state is not part of ARM EABI ucontext_t.
-  memcpy(&context.float_state, context.context.uc_mcontext.fpregs,
-         sizeof(context.float_state));
+  #if defined(__PPC64__)
+    memcpy(&context.float_state, context.context.uc_mcontext.fp_regs,
+          sizeof(context.float_state));
+  #else
+    memcpy(&context.float_state, context.context.uc_mcontext.fpregs,
+          sizeof(context.float_state));
+  #endif
 #endif
   context.tid = sys_gettid();
 
@@ -731,6 +743,9 @@ bool ExceptionHandler::WriteMinidump() {
 #elif defined(__mips__)
   context.siginfo.si_addr =
       reinterpret_cast<void*>(context.context.uc_mcontext.pc);
+#elif defined(__PPC64__)
+  context.siginfo.si_addr =
+      reinterpret_cast<void*>(context.context.uc_mcontext.gp_regs[PT_NIP]);
 #else
 #error "This code has not been ported to your platform yet."
 #endif

@@ -707,6 +707,8 @@ TEST(MinidumpWriterTest, InvalidStackPointer) {
   context.context.uc_mcontext.arm_sp = invalid_stack_pointer;
 #elif defined(__aarch64__)
   context.context.uc_mcontext.sp = invalid_stack_pointer;
+#elif defined(__PPC__)
+  context.context.uc_mcontext.regs->gpr[1] = invalid_stack_pointer;
 #elif defined(__mips__)
   context.context.uc_mcontext.gregs[MD_CONTEXT_MIPS_REG_SP] =
       invalid_stack_pointer;

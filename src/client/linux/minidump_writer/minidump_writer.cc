@@ -136,7 +136,7 @@ class MinidumpWriter {
       : fd_(minidump_fd),
         path_(minidump_path),
         ucontext_(context ? &context->context : NULL),
-#if !defined(__ARM_EABI__) && !defined(__mips__)
+#if !defined(__ARM_EABI__) && !defined(__mips__) && !defined(__PPC__)
         float_state_(context ? &context->float_state : NULL),
 #endif
         dumper_(dumper),
@@ -888,7 +888,7 @@ class MinidumpWriter {
     dirent->location.rva = 0;
   }
 
-#if defined(__i386__) || defined(__x86_64__) || defined(__mips__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__mips__) || defined(__PPC__)
   bool WriteCPUInformation(MDRawSystemInfo* sys_info) {
     char vendor_id[sizeof(sys_info->cpu.x86_cpu_info.vendor_id) + 1] = {0};
     static const char vendor_id_name[] = "vendor_id";
@@ -918,6 +918,8 @@ class MinidumpWriter {
 #endif
 #elif defined(__i386__)
         MD_CPU_ARCHITECTURE_X86;
+#elif defined(__PPC__)
+        MD_CPU_ARCHITECTURE_PPC;
 #else
         MD_CPU_ARCHITECTURE_AMD64;
 #endif
@@ -1325,7 +1327,11 @@ class MinidumpWriter {
 
   const struct ucontext* const ucontext_;  // also from the signal handler
 #if !defined(__ARM_EABI__) && !defined(__mips__)
-  const google_breakpad::fpstate_t* const float_state_;  // ditto
+  #if defined(__PPC__)
+    const struct _libc_fpstate* const float_state_=NULL;
+  #else
+    const google_breakpad::fpstate_t* const float_state_;  // ditto
+  #endif
 #endif
   LinuxDumper* dumper_;
   MinidumpFileWriter minidump_writer_;
